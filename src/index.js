@@ -29,6 +29,11 @@ app.get("/", (req, res) => {
   res.send("Payment Server is running!");
 });
 
+// 測試用的 API，確認伺服器運作正常
+app.get("/test", (req, res) => {
+  res.json({ message: "測試成功！" });
+});
+
 // 前端送訂單資料夾，建立金流訂單 (前端送訂單資料過來，後端這邊產生 ECPay 付款表單)
 app.post("/pay", (req, res) => {
   const orderData = req.body;
