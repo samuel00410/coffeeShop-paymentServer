@@ -81,6 +81,7 @@ app.get("/payment-return", (req, res) => {
   console.log("收到付款回傳：", returnData);
 });
 
-app.listen(3000, () => {
-  console.log("伺服器正在聆聽 port 3000...");
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`伺服器正在聆聽 port ${PORT}...`);
 });
