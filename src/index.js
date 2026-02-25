@@ -79,7 +79,7 @@ app.post("/pay", (req, res) => {
     TradeDesc: "咖啡店訂單", // 先寫死，實際上應該從前端傳過來
     ItemName: safeItemName,
     ReturnURL: `${HOST}/payment-callback`, // 綠界付款完成後會呼叫這個 URL
-    ClientBackURL: `${FRONTEND_URL}/checkout?payment=success&tradeNo=${TradeNo}`, // 付款後跳轉前端
+    ClientBackURL: `${FRONTEND_URL}/#/checkout?payment=success&tradeNo=${TradeNo}`, // 付款後跳轉前端
   };
 
   // 用 SDK 產生 HTML 表單
