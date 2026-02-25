@@ -37,7 +37,7 @@ app.get("/test", (req, res) => {
 // 前端送訂單資料夾，建立金流訂單 (前端送訂單資料過來，後端這邊產生 ECPay 付款表單)
 app.post("/pay", (req, res) => {
   const orderData = req.body;
-  const TradeNo = "COFF" + new Date().getTime(); // 產生唯一的訂單編號
+  const { orderId } = orderData; // 從前端傳來的訂單編號
 
   // 產生交易時間，格式 yyyy/MM/dd HH:mm:ss
   const MerchantTradeDate = new Date().toLocaleString("zh-TW", {
@@ -59,7 +59,7 @@ app.post("/pay", (req, res) => {
     TradeDesc: "咖啡店訂單", // 先寫死，實際上應該從前端傳過來
     ItemName: "咖啡", // 先寫死，實際上應該從前端傳過來
     ReturnURL: `${HOST}/payment-callback`, // 綠界付款完成後會呼叫這個 URL
-    ClientBackURL: `${FRONTEND_URL}/checkout`, // 付款後跳轉前端
+    ClientBackURL: `${FRONTEND_URL}/checkout?payment=success&orderId=${orderId}`, // 付款後跳轉前端
   };
 
   // 用 SDK 產生 HTML 表單
