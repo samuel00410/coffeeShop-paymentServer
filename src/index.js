@@ -53,7 +53,7 @@ app.post("/pay", (req, res) => {
 
   // 給綠界的參數
   const baseParam = {
-    MerchantTradeNo: TradeNo,
+    MerchantTradeNo: orderId,
     MerchantTradeDate,
     TotalAmount: "100", // 先寫死，實際上應該從前端傳過來
     TradeDesc: "咖啡店訂單", // 先寫死，實際上應該從前端傳過來
