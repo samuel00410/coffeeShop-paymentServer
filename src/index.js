@@ -69,14 +69,32 @@ app.post("/pay", (req, res) => {
   res.send(html); // 回傳 HTML 給前端，前端會自動跳轉到綠界付款頁面
 });
 
+// 後端接收綠界回傳的資料
 // ECPay 付款完成後回調（Webhook）
 app.post("/payment-callback", (req, res) => {
-  const callbackData = req.body;
-  console.log("收到付款回調：", callbackData);
+  console.log("req.body (收到綠界付款通知):", req.body);
+
+  const { CheckMacValue } = req.body;
+  const data = { ...req.body };
+  delete data.CheckMacValue; // 移除 CheckMacValue 以便驗證
+
+  // 用 SDK 重新計算驗證，和綠界傳來的比對
+  const create = new ecpay_payment(options);
+  const checkValue = create.payment_client.helper.gen_chk_mac_value(data);
+
+  console.log(
+    "確認交易正確性：",
+    CheckMacValue === checkValue,
+    CheckMacValue,
+    checkValue,
+  );
+
+  // 交易成功後，需要回傳 1|OK 給綠界 ( 一定要回傳 1|OK，否則綠界會每隔一段時間一直重發通知 )
+  res.send("1|OK");
 });
 
 // 使用者付款後被重導向回來的頁面
-app.get("/payment-return", (req, res) => {
+app.get("/clientReturn", (req, res) => {
   const returnData = req.query; // 從 URL 查詢參數接收資料
   console.log("收到付款回傳：", returnData);
 });
