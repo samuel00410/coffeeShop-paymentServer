@@ -1,6 +1,9 @@
+const axios = require("axios");
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+
+const orderMapping = {};
 
 // 綠界提供的 SDK
 const ecpay_payment = require("ecpay_aio_nodejs");
@@ -37,7 +40,15 @@ app.get("/test", (req, res) => {
 // 前端送訂單資料夾，建立金流訂單 (前端送訂單資料過來，後端這邊產生 ECPay 付款表單)
 app.post("/pay", (req, res) => {
   const orderData = req.body;
-  const { orderId } = orderData; // 從前端傳來的訂單編號
+  const { orderId, total, itemName } = orderData; // 從前端傳來的訂單編號
+
+  // 自己產生合法的 MerchantTradeNo（英數字，最長20字）
+  // 用時間戳後10碼，確保唯一且合法
+  const TradeNo = "COFF" + Date.now().toString().slice(-10);
+
+  // 存下 TradeNo → orderId 的對應關係
+  // 等等 /payment-callback 收到 TradeNo 時，才知道要打哪個六角訂單
+  orderMapping[TradeNo] = orderId;
 
   // 產生交易時間，格式 yyyy/MM/dd HH:mm:ss
   const MerchantTradeDate = new Date().toLocaleString("zh-TW", {
@@ -51,15 +62,24 @@ app.post("/pay", (req, res) => {
     timeZone: "Asia/Taipei",
   });
 
+  // TotalAmount 必須是「整數字串」
+  const amount = Math.round(Number(total));
+
+  // 3) ItemName 綠界常用 # 分隔
+  const safeItemName =
+    typeof itemName === "string" && itemName.trim().length > 0
+      ? itemName.slice(0, 200) // 保守一點先截斷
+      : "咖啡店商品";
+
   // 給綠界的參數
   const baseParam = {
-    MerchantTradeNo: orderId,
+    MerchantTradeNo: TradeNo,
     MerchantTradeDate,
-    TotalAmount: "100", // 先寫死，實際上應該從前端傳過來
+    TotalAmount: amount.toString(),
     TradeDesc: "咖啡店訂單", // 先寫死，實際上應該從前端傳過來
-    ItemName: "咖啡", // 先寫死，實際上應該從前端傳過來
+    ItemName: safeItemName,
     ReturnURL: `${HOST}/payment-callback`, // 綠界付款完成後會呼叫這個 URL
-    ClientBackURL: `${FRONTEND_URL}/checkout?payment=success&orderId=${orderId}`, // 付款後跳轉前端
+    ClientBackURL: `${FRONTEND_URL}/checkout?payment=success&tradeNo=${TradeNo}`, // 付款後跳轉前端
   };
 
   // 用 SDK 產生 HTML 表單
@@ -71,7 +91,7 @@ app.post("/pay", (req, res) => {
 
 // 後端接收綠界回傳的資料
 // ECPay 付款完成後回調（Webhook）
-app.post("/payment-callback", (req, res) => {
+app.post("/payment-callback", async (req, res) => {
   console.log("req.body (收到綠界付款通知):", req.body);
 
   const { CheckMacValue } = req.body;
@@ -88,6 +108,20 @@ app.post("/payment-callback", (req, res) => {
     CheckMacValue,
     checkValue,
   );
+
+  // 驗證成功 + 付款成功（RtnCode === '1'）
+  if (CheckMacValue === checkValue && RtnCode === "1") {
+    // 從 mapping 找回六角的 orderId
+    const hexOrderId = orderMapping[MerchantTradeNo];
+
+    if (hexOrderId) {
+      // 打六角 API 標記付款完成
+      await axios.post(
+        `https://ec-course-api.hexschool.io/v2/api/${process.env.API_PATH}/pay/${hexOrderId}`,
+      );
+      delete orderMapping[MerchantTradeNo]; // 用完清掉
+    }
+  }
 
   // 交易成功後，需要回傳 1|OK 給綠界 ( 一定要回傳 1|OK，否則綠界會每隔一段時間一直重發通知 )
   res.send("1|OK");
